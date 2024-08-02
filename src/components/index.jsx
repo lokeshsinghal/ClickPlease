@@ -1,42 +1,9 @@
 import {React, useState} from 'react';
-import { Button, Typography } from '@material-ui/core';
-import { makeStyles } from '@material-ui/core/styles';
-import WebCamera from '../genericComponent/WebCamera';
-
-const GOOGLE_API_KEY = "J4SPF3rBWNBZOAdl6wxUxzw3JUwY6i9Fhs-4EJmf5-Y"
-
-const useStyles = makeStyles((theme)=>({
-    heading:{
-        textAlign: 'center',
-    },
-    imagePreviewContainer:{
-        textAlign: 'center',
-    },
-    btnContainer:{
-        margin: '10px'
-    },
-    btnDivContainer:{
-        textAlign:'center'
-    },
-    geoTagContainer:{
-        position: 'relative',
-        display: 'inline-block',
-    },
-    geoTag:{
-        position: "absolute",
-        textAlign: 'center',
-        color: "white",
-        bottom:'0',
-        right: '35%'
-    }
-}))
+import WebCamera from '../common/WebCamera';
 
 function WebCamComponent(props){
     const [imageArray, setImageArray] = useState({});
-    const [isShowJSON, getOutputJSON] = useState(false);
-    const classes = useStyles({});
     const snapCallBackHandler = (props) =>{ 
-        console.log('props', props)
         setImageArray(props);
     }
 
@@ -85,17 +52,12 @@ function WebCamComponent(props){
         }
     ]
 
-    //reversegeoCode function
-    const getReverseGeoCodeHandler = (location) =>{
-      return fetch(`https://revgeocode.search.hereapi.com/v1/revgeocode?at=${location.coordinates.lat}%2C${location.coordinates.long}&lang=en-US&apikey=${GOOGLE_API_KEY}`)
-        .then(response => response.json())
-    
-    }
+     const getBarCodeData = (data)=>{
+        console.log(data)
+     }
 
     return (
-        <>
-            <Typography variant="h5" component="h2" className={classes.heading}>Please align the document with camera</Typography>
-            
+        <>            
             <WebCamera
                 audio={false} //to enable audio recording feature
                 video={false} //to enable the video recording feature
@@ -113,29 +75,16 @@ function WebCamComponent(props){
                 geoTagging={{
                     enabled:true, //to enable the location for latitude and langitude
                     geoCode_enabled: true, //to get the geo_code in data buffer
-                    reverse_geoCode_handler : getReverseGeoCodeHandler //function of reverse geo code
                 }}
-                barCode={true} //to enable the barcode feature
+                enableQrCode={true} //to enable the barcode feature
+                getBarCodeData={getBarCodeData}
+                videoBtns={{
+                    start: "Start",
+                    stop:"Stop",
+                    download:"Download"
+                }}
+                
             />
-            <div className={classes.imagePreviewContainer}>
-                <Typography variant="h6" component="h6">Image Preview</Typography>
-                {imageArray && Object.keys(imageArray).length !== 0 && imageArray.buffer !==null ? 
-                    <div className={classes.geoTagContainer}>
-                        <img src={imageArray.buffer} alt="screenshot" width='30%' height='30%' />
-                        {imageArray.geo_tagging && imageArray.geo_tagging.geo_code && imageArray.geo_tagging.geo_code.items && imageArray.geo_tagging.geo_code.items[0] && imageArray.geo_tagging.geo_code.items[0].address.city ? <Typography className={classes.geoTag}>{imageArray.geo_tagging.geo_code.items[0].address.city}</Typography> : null}
-                    </div>
-                    : 
-                    <Typography>No Image Found</Typography>
-                }
-            </div>
-            {imageArray ? <div className={classes.imagePreviewContainer}>
-                <Button variant="contained" color="primary" onClick={()=>getOutputJSON(true)}>Show JSON Data</Button>
-                {isShowJSON ? 
-                    <div>{JSON.stringify(imageArray)}</div>
-                    :
-                    null
-                }
-            </div> : null}
         </>
     )
 }

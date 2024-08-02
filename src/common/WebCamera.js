@@ -101,10 +101,16 @@ function WebCamera(props) {
         geoTagging={
             enable: false,
             geoCode_enabled: false,
-            reverse_geoCode_handler : null
         },
         resolutions,
-        barCode=false,
+        enableQrCode=false,
+        getBarCodeData=()=>{},
+        videoBtns={
+            start: "Start Capture",
+            stop:"Stop Capture",
+            download:"Download"
+        },
+        loadingIcon= false
     } = props;
 
     const classes = useStyles({ width, direction, mirrored });
@@ -158,23 +164,28 @@ function WebCamera(props) {
   }
 
   const parseDateTime=()=>{
-        // Parse our locale string to [date, time]
-        var date = new Date().toLocaleString('en-US',{hour12:false}).split(" ");
-        // Now we can access our time at date[1], and monthdayyear @ date[0]
-        var time = date[1];
-        var mdy = date[0];
-        // We then parse  the mdy into parts
-        mdy = mdy.split('/');
-        var month = parseInt(mdy[0]);
-        var day = parseInt(mdy[1]);
-        var year = parseInt(mdy[2]);
-        // Putting it all together
-        var formattedDate = year + '-' + month + '-' + day + ' ' + time;
-        return formattedDate;
+    // Parse our locale string to [date, time]
+    var date = new Date().toLocaleString('en-US',{hour12:false}).split(" ");
+    // Now we can access our time at date[1], and monthdayyear @ date[0]
+    var time = date[1];
+    var mdy = date[0];
+    // We then parse  the mdy into parts
+    mdy = mdy.split('/');
+    var month = parseInt(mdy[0]);
+    var day = parseInt(mdy[1]);
+    var year = parseInt(mdy[2]);
+    // Putting it all together
+    var formattedDate = year + '-' + month + '-' + day + ' ' + time;
+    return formattedDate;
   }
+    const getReverseGeoCodeHandler = (location) =>{
+        return fetch(`https://nominatim.openstreetmap.org/reverse?lat=${location.coordinates.lat}&lon=${location.coordinates.long}&format=json`)
+            .then(response => response.json())
+        
+    }
 
     const onCapture = async (type) =>{
-        const {snapCallBack, geoTagging, cropMode, barCode} = props;
+        const {snapCallBack, geoTagging, cropMode, enableQrCode} = props;
         let img = null;
         let dateTime = parseDateTime();
         if(type !== 'barCode'){
@@ -185,16 +196,16 @@ function WebCamera(props) {
                 img = webRef.current.getScreenshot();
             }
         }
-        const {geoCode_enabled, reverse_geoCode_handler, enabled} = geoTagging;
+        const {geoCode_enabled, enabled} = geoTagging;
         let geoCode = "";
-        if(geoCode_enabled && reverse_geoCode_handler && enabled){
-            await reverse_geoCode_handler(isLocation)
+        if(geoCode_enabled && enabled){
+            await getReverseGeoCodeHandler(isLocation)
             .then((res)=>{
                 geoCode = res;
             })
         }
         const imgArray = {
-            buffer: barCode && barCodeEnabled ? null : img,
+            buffer: enableQrCode && barCodeEnabled ? null : img,
             geo_tagging:{
                 coordinates:{
                     latitude: isLocation.coordinates.lat !== undefined && enabled ? isLocation.coordinates.lat : null,
@@ -203,8 +214,8 @@ function WebCamera(props) {
                 geo_code: geoCode_enabled && enabled && geoCode!=="" ? geoCode : null,
                 date_time: enabled ? dateTime : null
             },
-            content: barCode && barCodeEnabled ? result : null,
-            type: barCode && barCodeEnabled ? "bar_code" : "image",
+            content: enableQrCode && barCodeEnabled ? result : null,
+            type: enableQrCode && barCodeEnabled ? "bar_code" : "image",
         }
         snapCallBack && snapCallBack(imgArray);   
     }
@@ -271,6 +282,7 @@ function WebCamera(props) {
     //handler runs on onUpdate for barcode scanner
     const handleScan = (result) => {
         if (result) {
+          getBarCodeData && getBarCodeData(result)
           setResult(result.text);
         }
       }
@@ -299,7 +311,7 @@ function WebCamera(props) {
 
     return (
         <div className={classes.root}>
-            {loader && <Typography component="h6" variant="h6" >Loading...</Typography>}
+            {loader && <Typography component="h6" variant="h6" >{loadingIcon ? loadingIcon : "Loading ..."}</Typography>}
                 <>
                     {cameraPermission ?
                         <>
@@ -319,7 +331,7 @@ function WebCamera(props) {
                                     </Select>
                                 </FormControl>
                             }
-                            {barCode ?
+                            {enableQrCode ?
                                 <div>
                                     <Button 
                                         variant="contained" 
@@ -336,7 +348,7 @@ function WebCamera(props) {
                         </> : 
                         null
                     }
-                    {barCodeEnabled && barCode && cameraPermission 
+                    {barCodeEnabled && enableQrCode && cameraPermission 
                         ?
                         <div>
                             <div style={mirrored ? {"transform":'scaleX(-1)' } : null} className={classes.barcodeContainer}>
@@ -361,7 +373,6 @@ function WebCamera(props) {
                             >
                                 {snapText}
                             </Button>
-                            <div>Scanned Result is: {result}</div>
                         </div>
                         :
                         <>
@@ -395,7 +406,7 @@ function WebCamera(props) {
                                                     onClick={handleStopCaptureClick}
                                                     startIcon={<CameraAltIcon/>}
                                                 >
-                                                    Stop Capture
+                                                    {videoBtns?.stop}
                                                 </Button> 
                                                 : 
                                                 <Button 
@@ -405,7 +416,7 @@ function WebCamera(props) {
                                                     onClick={handleStartCaptureClick}
                                                     startIcon={<CameraAltIcon/>}
                                                 >
-                                                    Start Capture
+                                                    {videoBtns?.start}
                                                 </Button>
                                             }
                                             {recordedChunks.length > 0 && 
@@ -416,7 +427,7 @@ function WebCamera(props) {
                                                     onClick={downloadVideo}
                                                     startIcon={<CameraAltIcon/>}
                                                 >
-                                                    Download
+                                                    {videoBtns?.download}
                                                 </Button>
                                             }
                                         </div>  
